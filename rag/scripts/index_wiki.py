@@ -32,18 +32,22 @@ logger = logging.getLogger(__name__)
 DEFAULT_WIKI_ROOT = Path.home() / ".wiki"
 UPSERT_BATCH = 8  # small batch to bound GPU memory, matching the conversation indexer
 
-# Only these subtrees are knowledge pages. The wiki repo root also holds raw/
-# (unprocessed source) and top-level files (CLAUDE.md, sync.sh) that must not be
-# indexed, so scan the knowledge dirs explicitly rather than the whole root.
-INDEXED_SUBDIRS = ("hl", "personal", "sessions")
+# Every top-level directory is knowledge pages except these. A deny-list rather
+# than an allow-list because the wiki gains sections over time (the current
+# employer sits at the root, past ones under work/), and an allow-list silently
+# stops indexing whatever it has not heard of. raw/ is unprocessed source and
+# top-level files (CLAUDE.md, sync.sh) are not pages, so both stay out.
+EXCLUDED_SUBDIRS = frozenset({"raw", "scripts"})
 
 
 def _collect_pages(wiki_root: Path, explicit: list[str] | None) -> list[Path]:
     if explicit:
         return [Path(p).resolve() for p in explicit]
     pages: list[Path] = []
-    for sub in INDEXED_SUBDIRS:
-        pages.extend((wiki_root / sub).rglob("*.md"))
+    for sub in sorted(wiki_root.iterdir()):
+        if not sub.is_dir() or sub.name.startswith(".") or sub.name in EXCLUDED_SUBDIRS:
+            continue
+        pages.extend(sub.rglob("*.md"))
     return sorted(pages)
 
 
