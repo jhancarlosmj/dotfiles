@@ -572,6 +572,12 @@ class Store:
             embedding_function=self._embed_fn,
             metadata={"hnsw:space": "cosine"},
         )
+        # The keyword leg has to be cleared too. Dropping only the vector
+        # collection left its FTS rows behind, so search kept returning pages at
+        # paths that had moved or been deleted (2,844 such rows had built up).
+        removed = self._fts.clear_collection(collection_name)
+        if removed:
+            logger.info("Cleared %d keyword rows for collection %s", removed, collection_name)
 
     def stats(self) -> dict[str, int]:
         """Return document counts per collection, plus the keyword index."""

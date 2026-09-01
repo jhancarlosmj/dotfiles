@@ -182,3 +182,17 @@ class FtsIndex:
             return
         with self._conn() as conn:
             conn.execute("DELETE FROM chunks")
+
+    def clear_collection(self, collection: str) -> int:
+        """Drop one collection's rows, leaving the others in place.
+
+        The counterpart to Store.clear_collection. Without this, a clean
+        reindex drops the vector collection but leaves its keyword rows behind,
+        so search keeps returning pages at paths that have since moved or been
+        deleted. Returns the number of rows removed.
+        """
+        if not self.enabled:
+            return 0
+        with self._conn() as conn:
+            cur = conn.execute("DELETE FROM chunks WHERE collection = ?", (collection,))
+            return cur.rowcount or 0

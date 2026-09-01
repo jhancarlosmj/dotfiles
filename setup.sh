@@ -1768,8 +1768,12 @@ success "Accessibility permissions step complete"
 echo ""
 if ask "Enable daily auto-updates for all apps (Homebrew + App Store)?"; then
   brew tap domt4/autoupdate 2>/dev/null || warn "Could not tap domt4/autoupdate"
+  # Keep --greedy: force-update self-updating casks too, so apps are current
+  # when opened after a long gap rather than updating on first launch.
+  # Keep --immediate (RunAtLoad): also run on login/boot, so a Mac that was off
+  # through 04:00 catches up on next start instead of waiting a full day.
   brew autoupdate start --upgrade --cleanup --greedy --sudo --immediate 2>/dev/null \
-    && success "Auto-updates enabled (daily, immediate, on system boot; greedy casks)" \
+    && success "Auto-updates enabled (daily at 04:00 + on boot, greedy casks)" \
     || warn "Could not enable autoupdate. Run manually: brew autoupdate start"
 
   # Unattended sudo casks: read the admin password from the login Keychain
@@ -1791,6 +1795,25 @@ if ask "Enable daily auto-updates for all apps (Homebrew + App Store)?"; then
     printf '#!/bin/sh\nexec %s/scripts/brew-autoupdate-askpass.sh\n' "$DOTFILES_DIR" > "$AU_WRAP"
     chmod 555 "$AU_WRAP"
     success "Unattended cask upgrades wired to login Keychain"
+  fi
+
+  # The domt4 tool only schedules by interval (StartInterval), which drifts to
+  # whatever time the agent was last loaded. Repoint it to a fixed 04:00 wall
+  # clock (StartCalendarInterval); launchd runs it on the next wake if the Mac
+  # was asleep at 04:00. RunAtLoad (from --immediate) is left as set, so the
+  # on-boot run still happens too; the two schedules coexist.
+  AU_PLIST="$HOME/Library/LaunchAgents/com.github.domt4.homebrew-autoupdate.plist"
+  AU_PB="/usr/libexec/PlistBuddy"
+  if [[ -f "$AU_PLIST" ]]; then
+    "$AU_PB" -c "Delete :StartInterval"             "$AU_PLIST" 2>/dev/null || true
+    "$AU_PB" -c "Delete :StartCalendarInterval"     "$AU_PLIST" 2>/dev/null || true
+    "$AU_PB" -c "Add :StartCalendarInterval dict"            "$AU_PLIST"
+    "$AU_PB" -c "Add :StartCalendarInterval:Hour integer 4"  "$AU_PLIST"
+    "$AU_PB" -c "Add :StartCalendarInterval:Minute integer 0" "$AU_PLIST"
+    launchctl bootout   "gui/$(id -u)" "$AU_PLIST" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$AU_PLIST" 2>/dev/null \
+      && success "Auto-update scheduled for 04:00 (or next wake after)" \
+      || warn "Reload failed; run: launchctl bootstrap gui/\$(id -u) \"$AU_PLIST\""
   fi
 fi
 
