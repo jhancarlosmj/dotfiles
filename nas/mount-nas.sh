@@ -28,9 +28,12 @@ ADDRESSES=()
 SHARES=(${NAS_SHARES:-video home})
 USER_NAME="$NAS_USER"
 
+# Probe the SMB port rather than ping: on foreign networks another host can
+# answer ICMP at the LAN address, and a failed "mount volume" then throws a
+# Finder error dialog on every network change.
 pick_server() {
   for srv in "${ADDRESSES[@]}"; do
-    if /sbin/ping -c1 -W1000 "$srv" >/dev/null 2>&1; then
+    if /usr/bin/nc -z -G 2 "$srv" 445 >/dev/null 2>&1; then
       echo "$srv"
       return 0
     fi
