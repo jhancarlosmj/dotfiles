@@ -1,8 +1,29 @@
 {
   "cleanupPeriodDays": 999999,
   "includeCoAuthoredBy": false,
-  "model": "opus",
+  "model": "opus[1m]",
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|SendUserFile|Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/Developer/dotfiles/claude/hooks/verify-receipt.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/Developer/dotfiles/claude/hooks/consent-gate.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
@@ -10,6 +31,15 @@
             "type": "command",
             "command": "osascript -e 'display notification \"Finished, ready for you\" with title \"Claude Code\"'",
             "async": true
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/Developer/dotfiles/claude/hooks/reply-length-gate.sh",
+            "timeout": 15
           }
         ]
       }
@@ -66,7 +96,7 @@
     "mode": "hold"
   },
   "skipDangerousModePermissionPrompt": true,
+  "skipWorkflowUsageWarning": true,
   "theme": "auto",
-  "voiceEnabled": true,
-  "skipWorkflowUsageWarning": true
+  "voiceEnabled": true
 }
