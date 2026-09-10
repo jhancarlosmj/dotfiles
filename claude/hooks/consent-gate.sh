@@ -19,7 +19,7 @@ HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INPUT="$input" HOOKS_DIR="$HOOKS_DIR" python3 - <<'PY'
 import json, os, re, sys
 sys.path.insert(0, os.environ["HOOKS_DIR"])
-from lib_transcript import last_turns
+from lib_transcript import human_turns
 
 try:
     call = json.loads(os.environ["INPUT"])
@@ -74,18 +74,29 @@ label = classify()
 if not label:
     sys.exit(0)
 
-human, _ = last_turns(transcript)
-h = (human or "").lower()
+# A go stays live until the action is done or Warren redirects. Scanning only
+# the newest message voided consent whenever he added a follow-up instruction
+# before the authorised command had run (10 Sep, the SCB-5786 force-push), so
+# look back over the last few turns and let a later veto override.
+WINDOW = 3
 GO = r"(post|send|publish|push|deploy|go ahead|approved|approve|ship it|submit|merge|comment it|reply to)"
-neg = re.search(r"\b(don'?t|do not|never|stop|without|no)\s+(\w+\s+){0,2}" + GO + r"\b", h)
-pos = list(re.finditer(r"\b" + GO + r"\b", h))
-if pos and not (neg and len(pos) == 1):
+NEG = r"\b(don'?t|do not|never|stop|without|no)\s+(\w+\s+){0,2}" + GO + r"\b"
+
+turns = [t.lower() for t in human_turns(transcript)][-WINDOW:]
+go_at = None
+for i, t in enumerate(turns):
+    neg = re.search(NEG, t)
+    pos = list(re.finditer(r"\b" + GO + r"\b", t))
+    if pos and not (neg and len(pos) == 1):
+        go_at = i
+# A veto in the same turn or any turn after the go cancels it.
+if go_at is not None and not any(re.search(NEG, t) for t in turns[go_at + 1:]):
     sys.exit(0)
 
 reason = (
     f"Blocked: this is {label} and Warren's latest message does not authorise it. "
     "Show him the exact draft or command, stop, and ask him to reply with the action word "
-    "(post / send / publish / push / deploy / merge). One go covers one named batch; anything he says afterwards ends it."
+    "(post / send / publish / push / deploy / merge). One go covers one named batch, and stays live across follow-up instructions until the action runs or he vetoes it."
 )
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}))
 PY

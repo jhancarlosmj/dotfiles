@@ -12,6 +12,10 @@ TAG_RE = re.compile(
     r"<(system-reminder|local-command-stdout|command-name|command-message|command-args|local-command-caveat)>.*?</\1>",
     re.S,
 )
+# A quoted reply from the app arrives prefixed with an HTML comment. Left in
+# place it makes the turn look like markup, and _is_human drops it, so a go
+# word inside a quoted reply was invisible to the consent gate (10 Sep).
+COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 FENCE_RE = re.compile(r"```.*?```", re.S)
 
 
@@ -48,7 +52,7 @@ def _is_human(rec):
     t = _text(c)
     if t is None:
         return False
-    t = TAG_RE.sub("", t).strip()
+    t = COMMENT_RE.sub("", TAG_RE.sub("", t)).strip()
     return bool(t) and not t.startswith("<")
 
 
@@ -60,6 +64,18 @@ def _queued_human(rec):
     if a.get("type") == "queued_command" and (a.get("origin") or {}).get("kind") == "human":
         return (a.get("prompt") or "").strip() or None
     return None
+
+
+def human_turns(path):
+    """Return every human message in order, oldest first."""
+    out = []
+    for rec in _records(path):
+        queued = _queued_human(rec)
+        if queued:
+            out.append(queued)
+        elif _is_human(rec):
+            out.append(COMMENT_RE.sub("", TAG_RE.sub("", _text(rec["message"]["content"]))).strip())
+    return out
 
 
 def last_turns(path):
@@ -77,7 +93,7 @@ def last_turns(path):
             human = queued
             assistant = []
         elif _is_human(rec):
-            human = TAG_RE.sub("", _text(rec["message"]["content"])).strip()
+            human = COMMENT_RE.sub("", TAG_RE.sub("", _text(rec["message"]["content"]))).strip()
             assistant = []
         elif rec.get("type") == "assistant" and not rec.get("isSidechain"):
             t = _text((rec.get("message") or {}).get("content"))
