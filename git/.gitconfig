@@ -99,6 +99,5 @@
 # machine; step 13 appends cloned repo paths to its [maintenance] block.
 [include]
     path = ~/.gitconfig.local
-[user]
-	name = Warren de Leon
-	email = hi@warrendeleon.com
+[maintenance]
+	repo = /Users/jhancarlosmj/Developer/dotfiles

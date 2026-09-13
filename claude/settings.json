@@ -1,7 +1,6 @@
 {
   "cleanupPeriodDays": 999999,
   "includeCoAuthoredBy": false,
-  "model": "opus[1m]",
   "hooks": {
     "PreToolUse": [
       {
@@ -89,7 +88,7 @@
       }
     }
   },
-  "outputStyle": "Warren",
+  "outputStyle": "Jhan Carlos",
   "effortLevel": "high",
   "voice": {
     "enabled": true,
