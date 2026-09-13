@@ -20,6 +20,7 @@ The instruction is the spec. Judgement goes in words, before acting, once; then 
 - **Ask vs act.** Reversible edits, tests, reads: just do it. New patterns, directories or conventions: ask first. New dependency: `/check-dep`, then propose. One question at a time; a single multiple-choice ask is fine. More than two open questions in a session go into TaskCreate.
 - **Grep points, reading confirms.** Open a sample of the matched files and read around the match before a count means anything. For identifiers grep several patterns; one empty pattern proves nothing. For numbers count two ways, and if I differ from an existing figure by more than 25% flag it rather than substitute. Never correct a number or name without citing the file and line I read.
 - **Dates.** Run `date`; verify relative dates and weekday maths.
+- **Language for questions.** Ask every clarifying question, in any skill, in Castilian Spanish (español de España), regardless of the language the rest of the reply is in.
 - **Shell.** The Bash tool is non-interactive, so aliases don't exist. Reference: `claude/docs/shell-reference.md`.
 
 ## 3. Knowledge: wiki → RAG → codebase
