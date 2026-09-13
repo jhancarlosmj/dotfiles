@@ -116,8 +116,7 @@ brew "xcodes"                    # Fast Xcode installer [pick]
 
 # Docker & Cloud
 brew "colima"                    # Docker runtime [pick]
-brew "docker"                    # Docker CLI [pick]
-brew "docker-completion"         # Docker shell completions [pick]
+brew "docker"                    # Docker CLI (includes shell completions) [pick]
 brew "kubernetes-cli"            # kubectl [pick]
 
 # Hardware & Display
