@@ -67,7 +67,7 @@ if [[ -d "$DOTFILES_DIR/.git" ]]; then
   git -C "$DOTFILES_DIR" pull --rebase || warn "Pull failed. Continuing with existing copy."
 else
   info "Cloning dotfiles..."
-  git clone https://github.com/warrendeleon/dotfiles.git "$DOTFILES_DIR"
+  git clone https://github.com/jhancarlosmj/dotfiles.git "$DOTFILES_DIR"
   success "Cloned to ${DOTFILES_DIR}"
 fi
 

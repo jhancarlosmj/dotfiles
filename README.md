@@ -11,16 +11,18 @@
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
-![GitHub last commit](https://img.shields.io/github/last-commit/warrendeleon/dotfiles?style=flat-square)
+![GitHub last commit](https://img.shields.io/github/last-commit/jhancarlosmj/dotfiles?style=flat-square)
 
 </div>
 
 ---
 
+> **Provenance:** this repo started on 2026-09-13 as a clone of [warrendeleon/dotfiles](https://github.com/warrendeleon/dotfiles), then personalised for its own machine and identity (output style, git/SSH identity, RAG config, hooks). Commit history before that date is the original author's; see `git log`.
+
 ## Quick Start
 
 ```bash
-git clone https://github.com/warrendeleon/dotfiles.git ~/Developer/dotfiles
+git clone https://github.com/jhancarlosmj/dotfiles.git ~/Developer/dotfiles
 cd ~/Developer/dotfiles
 ./setup.sh
 ```
