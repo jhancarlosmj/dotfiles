@@ -34,6 +34,7 @@ The wiki (`~/.wiki`) is long-term memory; memory files hold behaviour and pointe
 
 ## 4. Code quality and security
 
+- **Every identifier is in English**, whatever language the surrounding prose is in: table and column names, entities, classes, functions, variables, endpoints, state names, branches, commit messages. When the spec is written in another language, translate at the modelling step and record the mapping in `CONTEXT.md`. The domain term survives in the glossary and the prose, never in the identifier.
 - Automated LLM calls run with `noTools: true` or equivalent; a pipeline never takes actions.
 - Never commit secrets or PII: `/scan-secrets` before every commit, `/sanitise-config` before committing any config file.
 - Never leave a bug unfixed, whatever the severity, and never ask whether to fix it.
