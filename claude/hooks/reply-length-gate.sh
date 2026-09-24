@@ -27,7 +27,24 @@ if not human or not assistant:
 hw, aw = words(human), words(assistant)
 if hw >= 30 or aw <= 120:
     sys.exit(0)
-ASKS_FOR_LENGTH = r"\b(explain|detail|detailed|write|draft|list|report|summar\w*|teach|describe|compare|plan|review|document|essay|article|deck|email|walk me|in depth|elaborate|everything|all of)\b"
+ASKS_FOR_LENGTH_EN = (
+    r"explain|detail|detailed|write|draft|list|report|summar\w*|teach|describe"
+    r"|compare|plan|review|document|essay|article|deck|email|walk me|in depth"
+    r"|elaborate|everything|all of|why"
+)
+# Warren writes to me in Castilian, so an English-only list let "resume esto"
+# or "explícame por qué" be penalised for the length they asked for.
+# Verbs only, and only ones that mean "produce something written": "crea",
+# "arregla" or "añade" stay out, because the deliverable there is the file.
+ASKS_FOR_LENGTH_ES = (
+    r"resum\w*|res\u00fam\w*|explic\w*|expl\u00edc\w*|detall\w*|describ\w*|desglos\w*"
+    r"|redact\w*|escrib\w*|escr\u00edb\w*|document\w*|informes?|an\u00e1lisis|analisis|analiz\w*"
+    r"|audit\w*|revis\w*|compara\w*|comparaci\w*|listad\w*|lista|listar"
+    r"|planific\w*|profundiz\w*|ampl\u00ed\w*|elabor\w*|ense\u00f1\w*|ens\u00e9\u00f1\w*"
+    r"|gu\u00eda|art\u00edculo|articulo|ensayo|propuest\w*|cu\u00e9nta\w*|cuenta\w*"
+    r"|por qu\u00e9|porqu\w*|en detalle|a fondo|todo lo|todos los|todas las"
+)
+ASKS_FOR_LENGTH = r"\b(" + ASKS_FOR_LENGTH_EN + r"|" + ASKS_FOR_LENGTH_ES + r")\b"
 if re.search(ASKS_FOR_LENGTH, human, re.I):
     sys.exit(0)
 reason = (
