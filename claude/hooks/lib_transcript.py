@@ -17,6 +17,11 @@ TAG_RE = re.compile(
 # word inside a quoted reply was invisible to the consent gate (10 Sep).
 COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
 FENCE_RE = re.compile(r"```.*?```", re.S)
+# A markdown table is the content itself, the way a code block is: the gate's
+# own message allows a list, yet every cell and every pipe counted as prose, so
+# a six-row table blew the budget before a word of prose was written (24 Sep).
+# Two or more consecutive lines starting with a pipe, so a stray line is safe.
+TABLE_RE = re.compile(r"(?:^[ \t]*\|[^\n]*\n?){2,}", re.M)
 
 
 def _text(content):
@@ -82,8 +87,8 @@ def last_turns(path):
     """Return (last_human_text, assistant_prose_since_that_human).
 
     Assistant text is every text block emitted after the last human message,
-    joined, with fenced code blocks removed so a requested command or snippet
-    does not count as prose.
+    joined, with fenced code blocks and markdown tables removed so a requested
+    command, snippet or table does not count as prose.
     """
     human = None
     assistant = []
@@ -99,7 +104,8 @@ def last_turns(path):
             t = _text((rec.get("message") or {}).get("content"))
             if t:
                 assistant.append(t)
-    return human, FENCE_RE.sub("", "\n".join(assistant))
+    prose = TABLE_RE.sub("", FENCE_RE.sub("", "\n".join(assistant)))
+    return human, prose
 
 
 def words(s):
