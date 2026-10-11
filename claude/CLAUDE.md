@@ -43,7 +43,7 @@ The wiki (`~/.wiki`) is long-term memory; memory files hold behaviour and pointe
 ## 5. Git
 
 - Rebase only: `git rebase main` on the branch, `git merge --ff-only` into main.
-- Commit format `[gitmoji] [type]([scope]): [subject]`, imperative, under 72 chars, bulleted body saying what and why.
+- Commit format `[type]([scope]): [subject]`, no emoji or gitmoji anywhere in the message, imperative, under 72 chars, bulleted body saying what and why. **Always in English**, in every repo, whatever language the files themselves are written in — the wiki included.
 - Never push without being asked; when told to push, push all remotes.
 - Never mention Claude, AI or automated generation anywhere: commits, code, docs, tests, config. No `Co-authored-by` trailers.
 
