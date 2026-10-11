@@ -67,7 +67,9 @@ def _queued_human(rec):
         return None
     a = rec.get("attachment") or {}
     if a.get("type") == "queued_command" and (a.get("origin") or {}).get("kind") == "human":
-        return (a.get("prompt") or "").strip() or None
+        # A queued message with a pasted image carries its prompt as content
+        # blocks, not a string; .strip() on the list crashed every gate (11 Oct).
+        return (_text(a.get("prompt")) or "").strip() or None
     return None
 
 
