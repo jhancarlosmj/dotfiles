@@ -142,6 +142,11 @@ killport() {
   fi
 }
 
+# claude-eco — Claude Code with Sonnet driving, Opus as advisor, Haiku subagents
+claude-eco() {
+  CLAUDE_CODE_SUBAGENT_MODEL=haiku claude --model sonnet --advisor opus "$@"
+}
+
 # ---------------------------------------------------------------------------
 # Aliases
 # ---------------------------------------------------------------------------
@@ -278,6 +283,8 @@ aliases() {
   printf '│ mkcd       │ mkdir + cd in one step                           │\n'
   printf '├────────────┼──────────────────────────────────────────────────┤\n'
   printf '│ killport   │ kill process on port (killport 3000)             │\n'
+  printf '├────────────┼──────────────────────────────────────────────────┤\n'
+  printf '│ claude-eco │ Sonnet + Opus advisor + Haiku subagents          │\n'
   printf '└────────────┴──────────────────────────────────────────────────┘\n'
   printf '\n  Git aliases: run "git aliases" for git-specific shortcuts\n\n'
 }
