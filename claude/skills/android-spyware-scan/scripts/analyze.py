@@ -82,11 +82,13 @@ def parse_pkg_list(out):
 
 def parse_dumpsys_package(out):
     text = read(out, "dumpsys_package.txt")
-    if "\nPackages:\n" not in text:
+    m = re.search(r"(?:^|\n)Packages:\n", text)
+    if not m:
         return {}
-    sec = text.split("\nPackages:\n", 1)[1]
+    sec = text[m.end():]
     info = {}
-    for blk in re.split(r"\n  Package \[", sec)[1:]:
+    # The first block starts right after "Packages:\n", with no newline of its own.
+    for blk in re.split(r"(?:^|\n)  Package \[", sec)[1:]:
         pkg = blk.split("]", 1)[0]
         if pkg in info:
             continue
