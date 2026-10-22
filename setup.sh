@@ -958,6 +958,20 @@ if command -v claude &>/dev/null || [[ "${CLAUDE_CODE_INSTALLED:-}" == "true" ]]
       [[ -f "$cmd" ]] && symlink "$cmd" "$HOME/.claude/commands/$(basename "$cmd")"
     done
   fi
+  # Symlink global skills (one directory per skill)
+  if [[ -d "${DOTFILES_DIR}/claude/skills" ]]; then
+    mkdir -p "$HOME/.claude/skills"
+    for skill in "${DOTFILES_DIR}/claude/skills/"*/; do
+      skill="${skill%/}"
+      dest="$HOME/.claude/skills/$(basename "$skill")"
+      # symlink() backs up files only; a real directory here would swallow the link
+      if [[ -d "$dest" && ! -L "$dest" ]]; then
+        warn "Skipping $dest: a real directory is in the way"
+        continue
+      fi
+      symlink "$skill" "$dest"
+    done
+  fi
   # Symlink global docs
   if [[ -d "${DOTFILES_DIR}/claude/docs" ]]; then
     symlink "${DOTFILES_DIR}/claude/docs" "$HOME/.claude/docs"
