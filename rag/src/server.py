@@ -9,7 +9,7 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from .store import Store
+from .store import EmbeddingModelMismatch, Store
 from .queue_db import JobQueue, JobType
 from .audit import AuditLog
 
@@ -34,6 +34,37 @@ def _get_store() -> Store:
     if _store is None:
         _store = Store()
     return _store
+
+
+LOG_DIR = "~/.rag/logs"
+
+NO_RESULTS = (
+    "No results in the wiki or past conversations. Try fewer or different "
+    "keywords (an exact identifier, file name or error text often matches "
+    "through the keyword leg), or grep the raw transcripts with /recall."
+)
+
+
+def _open_store() -> tuple[Store | None, str | None]:
+    """The store, or a message saying why it cannot open and what to do."""
+    try:
+        return _get_store(), None
+    except EmbeddingModelMismatch as e:
+        return None, str(e)
+    except Exception as e:
+        logger.exception("Could not open the store")
+        return None, (
+            f"Could not open the search index ({type(e).__name__}: {str(e)[:200]}). "
+            f"Details in {LOG_DIR}/indexer.err."
+        )
+
+
+def _backend_failure(action: str, e: Exception) -> str:
+    return (
+        f"{action} failed ({type(e).__name__}: {str(e)[:200]}). The usual cause is the "
+        "embedding backend: check that Ollama answers on localhost:11434 (`ollama list`), "
+        f"then see {LOG_DIR}/indexer.err."
+    )
 
 
 def _get_queue() -> JobQueue:
@@ -154,16 +185,18 @@ def search(query: str, n_results: int = 10) -> str:
         n_results: Number of results to return (default 10).
     """
     n_results = min(max(1, n_results), MAX_SEARCH_RESULTS)
-    store = _get_store()
+    store, problem = _open_store()
+    if problem:
+        return problem
 
     try:
         results = store.search(query, n_results=n_results)
-    except Exception:
+    except Exception as e:
         logger.exception("Search failed")
-        return "Search failed. Check that the embedding model is available."
+        return _backend_failure("Search", e)
 
     if not results:
-        return "No results found."
+        return NO_RESULTS
 
     return (
         f"{len(results)} hit(s). Compact index below; call get_chunks([ids]) "
@@ -182,21 +215,36 @@ def get_chunks(ids: list[str]) -> str:
         ids: Document ids from a prior search.
     """
     if not ids:
-        return "No ids given."
-    store = _get_store()
+        return "No ids given. Pass the ids shown in a search result, e.g. get_chunks([\"<id>\"])."
+    store, problem = _open_store()
+    if problem:
+        return problem
     try:
         docs = store.get_documents(ids)
-    except Exception:
+    except Exception as e:
         logger.exception("get_chunks failed")
-        return "Failed to fetch chunks."
+        return (
+            f"Fetching chunks failed ({type(e).__name__}: {str(e)[:200]}). "
+            f"See {LOG_DIR}/indexer.err."
+        )
 
     if not docs:
-        return "No matching chunks found for those ids."
+        return (
+            "None of those ids exist any more; the page or turn was probably "
+            "reindexed under a new id. Run search again and use the fresh ids."
+        )
 
     # Preserve the caller's id order.
     by_id = {d["id"]: d for d in docs}
     ordered = [by_id[i] for i in ids if i in by_id]
-    return format_full(ordered, with_relevance=False)
+    text = format_full(ordered, with_relevance=False)
+    missing = [i for i in ids if i not in by_id]
+    if missing:
+        text += (
+            f"\n\n({len(missing)} id(s) no longer exist and were skipped: "
+            f"{', '.join(missing[:5])}{' ...' if len(missing) > 5 else ''}. Search again for fresh ids.)"
+        )
+    return text
 
 
 @mcp.tool()
@@ -212,14 +260,16 @@ def get_context(topic: str, n_results: int = 5) -> str:
         n_results: Number of results (default 5).
     """
     n_results = min(max(1, n_results), MAX_SEARCH_RESULTS)
-    store = _get_store()
+    store, problem = _open_store()
+    if problem:
+        return problem
     try:
         results = store.search(query=topic, n_results=n_results)
-    except Exception:
+    except Exception as e:
         logger.exception("get_context failed")
-        return "Context lookup failed. Check that the embedding model is available."
+        return _backend_failure("Context lookup", e)
     if not results:
-        return "No results found."
+        return NO_RESULTS
     return format_full(results, with_relevance=True)
 
 
@@ -240,7 +290,7 @@ def log_action(description: str, files_affected: list[str] | None = None) -> str
         return f"Logged (entry #{entry_id}): {description}"
     except Exception:
         logger.exception("Failed to write audit log")
-        return "Failed to write audit log entry."
+        return f"Failed to write the audit entry (nothing was logged). The log lives in ~/.rag/audit.db; see {LOG_DIR}/indexer.err."
 
 
 @mcp.tool()
@@ -278,7 +328,7 @@ def index_file(path: str) -> str:
         queue = _get_queue()
     except Exception:
         logger.exception("Failed to access job queue")
-        return "Failed to access job queue."
+        return f"Job queue unavailable. See {LOG_DIR}/indexer.err; the queue lives in ~/.rag/queue.db."
 
     try:
         job_id = queue.enqueue(str(file_path.resolve()), JobType.CONVERSATION.value, priority=100)
@@ -301,7 +351,7 @@ def get_indexing_status() -> str:
         queue = _get_queue()
     except Exception:
         logger.exception("Failed to access job queue")
-        return "Job queue unavailable."
+        return f"Job queue unavailable. See {LOG_DIR}/indexer.err; the queue lives in ~/.rag/queue.db."
 
     counts = queue.stats()
     if not counts:
@@ -350,7 +400,7 @@ def get_failed_jobs(limit: int = 20) -> str:
         queue = _get_queue()
     except Exception:
         logger.exception("Failed to access job queue")
-        return "Job queue unavailable."
+        return f"Job queue unavailable. See {LOG_DIR}/indexer.err; the queue lives in ~/.rag/queue.db."
 
     jobs = queue.get_failed_jobs(limit=limit)
     if not jobs:
@@ -368,6 +418,23 @@ def get_failed_jobs(limit: int = 20) -> str:
     return "\n\n".join(parts)
 
 
+def parse_since(since: str, now: float | None = None) -> float | None:
+    """Turn "24h", "7d" or a past Unix timestamp into a timestamp; None if unreadable."""
+    now = time.time() if now is None else now
+    since = since.strip().lower()
+    try:
+        if since.endswith("h") and len(since) > 1:
+            hours = float(since[:-1])
+            return now - hours * 3600 if hours > 0 else None
+        if since.endswith("d") and len(since) > 1:
+            days = float(since[:-1])
+            return now - days * 86400 if days > 0 else None
+        parsed = float(since)
+        return parsed if 0 < parsed <= now else None
+    except ValueError:
+        return None
+
+
 @mcp.tool()
 def get_audit_log(since: str | None = None, limit: int = 20) -> str:
     """View recent audit log entries.
@@ -383,26 +450,18 @@ def get_audit_log(since: str | None = None, limit: int = 20) -> str:
         audit = _get_audit()
     except Exception:
         logger.exception("Failed to connect to audit log")
-        return "Audit log unavailable."
+        return f"Audit log unavailable. The log lives in ~/.rag/audit.db; see {LOG_DIR}/indexer.err."
 
     since_ts: float | None = None
     if since:
-        now = time.time()
-        try:
-            if since.endswith("h") and len(since) > 1:
-                hours = float(since[:-1])
-                if hours > 0:
-                    since_ts = now - (hours * 3600)
-            elif since.endswith("d") and len(since) > 1:
-                days = float(since[:-1])
-                if days > 0:
-                    since_ts = now - (days * 86400)
-            else:
-                parsed = float(since)
-                if parsed <= now:
-                    since_ts = parsed
-        except ValueError:
-            pass
+        since_ts = parse_since(since)
+        if since_ts is None:
+            # Silently ignoring the filter returned unfiltered entries that
+            # read as filtered ones.
+            return (
+                f"Could not read since={since!r}. Use hours ago (\"24h\"), days ago "
+                "(\"7d\") or a past Unix timestamp, or omit it for the latest entries."
+            )
 
     entries = audit.get_entries(since=since_ts, limit=limit)
 
