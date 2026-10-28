@@ -183,6 +183,17 @@ class FtsIndex:
         with self._conn() as conn:
             conn.execute("DELETE FROM chunks")
 
+    def delete_ids(self, doc_ids: list[str]) -> int:
+        """Remove the rows for these doc ids. Returns the number removed."""
+        if not self.enabled or not doc_ids:
+            return 0
+        removed = 0
+        with self._conn() as conn:
+            for doc_id in doc_ids:
+                cur = conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
+                removed += cur.rowcount or 0
+        return removed
+
     def clear_collection(self, collection: str) -> int:
         """Drop one collection's rows, leaving the others in place.
 

@@ -459,3 +459,28 @@ def test_summarise_one_removes_every_older_page_of_the_session(tmp_path: Path, m
     assert not orphan_a.exists() and not orphan_b.exists()
     assert other.exists()
     assert len(pages) == 2  # the new page and the other session's page
+
+
+def test_removed_page_is_queued_so_the_index_drops_it(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(sweep, "WIKI_SESSIONS_ROOT", tmp_path / "wiki")
+    monkeypatch.setattr(sweep, "run_claude", lambda *a, **k: _fake_envelope(_good_fields()))
+    proj = tmp_path / "projects" / "-Users-w-Developer"
+    proj.mkdir(parents=True)
+    transcript = proj / "abc12345.jsonl"
+    _write_jsonl(transcript, n_turns=6)
+    folder = tmp_path / "wiki" / "sessions" / "mbp16m1max"
+    folder.mkdir(parents=True)
+    orphan = folder / "2026-09-18-old-title.md"
+    orphan.write_text("---\ntitle: x\nsession_id: abc12345\n---\n\n# x\n")
+
+    queued = []
+
+    class _Queue:
+        def enqueue(self, path, job_type, priority=0):
+            queued.append(path)
+
+    led = SummaryLedger(db_path=tmp_path / "l.db")
+    sweep.summarise_one(transcript, led, model="haiku", index_queue=_Queue(), origins={"abc12345": "mbp16"})
+
+    assert str(orphan) in queued
+    assert any(p != str(orphan) for p in queued)  # the new page is indexed too

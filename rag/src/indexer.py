@@ -351,6 +351,12 @@ class Indexer:
         from .parsers.markdown import parse_wiki_page
 
         wiki_root = Path(os.environ.get("RAG_WIKI_ROOT") or (Path.home() / ".wiki"))
+        # Drop the page's old chunks first: a deleted page must leave search,
+        # and a page with fewer sections must not keep its old tail chunks.
+        removed = self.store.delete_file("wiki", str(path))
+        if not path.exists():
+            logger.info("Wiki page %s is gone; removed %d chunks", path.name, removed)
+            return
         try:
             chunks = parse_wiki_page(path, wiki_root)
         except ValueError:

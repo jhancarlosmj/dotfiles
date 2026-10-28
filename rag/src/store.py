@@ -627,10 +627,31 @@ class Store:
         return found
 
     def delete(self, collection_name: str, identifier: str) -> None:
-        """Delete a document by its identifier."""
+        """Delete a document by its identifier, from both the vector and keyword legs."""
         doc_id = _doc_id(collection_name, identifier)
         col = self.collection(collection_name)
         col.delete(ids=[doc_id])
+        try:
+            self._fts.delete_ids([doc_id])
+        except Exception:
+            logger.exception("FTS delete failed for %s", doc_id)
+
+    def delete_file(self, collection_name: str, file_path: str) -> int:
+        """Delete every chunk indexed from one file. Returns how many were removed.
+
+        Clears what a page left behind when it was deleted, or when it now has
+        fewer sections than before (its higher-numbered chunks would linger).
+        """
+        col = self.collection(collection_name)
+        ids = col.get(where={"file_path": file_path}, include=[])["ids"]
+        if not ids:
+            return 0
+        col.delete(ids=ids)
+        try:
+            self._fts.delete_ids(ids)
+        except Exception:
+            logger.exception("FTS delete failed for %s", file_path)
+        return len(ids)
 
     def clear_collection(self, collection_name: str) -> None:
         """Drop and recreate a single collection. Used for a clean full reindex.

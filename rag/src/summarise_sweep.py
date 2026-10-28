@@ -362,6 +362,13 @@ def summarise_one(
                 logger.info("removed superseded page for %s: %s", session_id[:8], old.name)
         except OSError:
             logger.warning("could not remove superseded page %s", old)
+            continue
+        # The indexer drops a missing page's chunks, so the removal reaches search.
+        if index_queue is not None:
+            try:
+                index_queue.enqueue(str(old), JobType.WIKI.value, priority=50)
+            except Exception:
+                logger.warning("could not enqueue removal of %s", old.name)
 
     status = "needs-review" if violations else "written"
     ledger.record(session_id, str(path), _file_hash(str(path)), str(target), status, model)
