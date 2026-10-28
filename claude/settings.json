@@ -21,6 +21,16 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/Developer/dotfiles/claude/hooks/destructive-gate.sh",
+            "timeout": 15
+          }
+        ]
       }
     ],
     "Stop": [
