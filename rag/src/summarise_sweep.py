@@ -254,6 +254,20 @@ def wiki_session_ids() -> frozenset[str]:
     return frozenset(ids)
 
 
+def _pages_for_session(sessions_dir: Path, session_id: str) -> list[Path]:
+    """Pages in one machine folder whose frontmatter names this session."""
+    marker = f"\nsession_id: {session_id}\n"
+    found = []
+    for page in sessions_dir.glob("*.md"):
+        try:
+            head = page.read_text(encoding="utf-8")[:2000]
+        except OSError:
+            continue
+        if marker in head:
+            found.append(page)
+    return found
+
+
 def _write_page(page_text: str, machine: str, date: str, slug: str, session_id: str) -> Path:
     """Write the page under wiki/sessions/<machine>/, disambiguating collisions."""
     sessions_dir = WIKI_SESSIONS_ROOT / "sessions" / machine_folder(machine)
@@ -333,16 +347,21 @@ def summarise_one(
     target = _write_page(page, machine, date, slug, session_id)
 
     # Resume case: a re-summarised session whose title or date changed lands at a
-    # new filename. Remove the previous page so the stale one is not orphaned.
+    # new filename. Remove every older page for this session, not only the one
+    # the ledger remembers: the ledger keeps a single path, so a session
+    # summarised three times under three titles left two orphans behind.
+    stale = set(_pages_for_session(target.parent, session_id))
     prev_path = prev["page_path"] if prev else None
-    if prev_path and prev_path != str(target):
+    if prev_path:
+        stale.add(Path(prev_path))
+    stale.discard(target)
+    for old in sorted(stale):
         try:
-            old = Path(prev_path)
             if old.is_file():
                 old.unlink()
                 logger.info("removed superseded page for %s: %s", session_id[:8], old.name)
         except OSError:
-            logger.warning("could not remove superseded page %s", prev_path)
+            logger.warning("could not remove superseded page %s", old)
 
     status = "needs-review" if violations else "written"
     ledger.record(session_id, str(path), _file_hash(str(path)), str(target), status, model)

@@ -432,3 +432,30 @@ def test_summarise_one_records_the_file_trail(tmp_path: Path, monkeypatch) -> No
     assert seen["trail"]["written"] == ["/Users/w/Desktop/plan.md"]
     page = next((tmp_path / "wiki" / "sessions").rglob("*.md")).read_text()
     assert "- Written: `/Users/w/Desktop/plan.md`" in page
+
+
+def test_summarise_one_removes_every_older_page_of_the_session(tmp_path: Path, monkeypatch) -> None:
+    """Orphans the ledger no longer points at are removed too; other sessions stay."""
+    monkeypatch.setattr(sweep, "WIKI_SESSIONS_ROOT", tmp_path / "wiki")
+    monkeypatch.setattr(sweep, "run_claude", lambda *a, **k: _fake_envelope(_good_fields()))
+
+    proj = tmp_path / "projects" / "-Users-w-Developer"
+    proj.mkdir(parents=True)
+    transcript = proj / "abc12345.jsonl"
+    _write_jsonl(transcript, n_turns=6)
+
+    folder = tmp_path / "wiki" / "sessions" / "mbp16m1max"
+    folder.mkdir(parents=True)
+    orphan_a = folder / "2026-09-18-old-title.md"
+    orphan_b = folder / "2026-09-19-older-title.md"
+    other = folder / "2026-09-19-another-session.md"
+    for page, sid in ((orphan_a, "abc12345"), (orphan_b, "abc12345"), (other, "zzz99999")):
+        page.write_text(f"---\ntitle: x\nsession_id: {sid}\nproject: p\n---\n\n# x\n")
+
+    led = SummaryLedger(db_path=tmp_path / "l.db")
+    assert sweep.summarise_one(transcript, led, model="haiku", origins={"abc12345": "mbp16"}) == "written"
+
+    pages = sorted(p.name for p in folder.glob("*.md"))
+    assert not orphan_a.exists() and not orphan_b.exists()
+    assert other.exists()
+    assert len(pages) == 2  # the new page and the other session's page
