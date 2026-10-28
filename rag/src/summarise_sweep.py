@@ -25,7 +25,7 @@ import time
 from pathlib import Path
 from typing import Iterable, Iterator
 
-from .parsers.jsonl import parse_conversation
+from .parsers.jsonl import extract_file_trail, parse_conversation
 from .queue_db import JobQueue, JobType, _file_hash
 from .summariser import (
     DEFAULT_MODEL,
@@ -298,8 +298,9 @@ def summarise_one(
                     session_id[:8], domain, n_turns, len(text))
         return "dry-run"
 
+    trail = extract_file_trail(path)
     try:
-        envelope = run_claude(text, model=model)
+        envelope = run_claude(text, model=model, file_trail=trail)
         fields = parse_summary(envelope["result"])
     except HollowSummary as e:
         # The model found nothing worth a note: a clean skip, not an error,
@@ -315,7 +316,7 @@ def summarise_one(
     page = render_page(
         fields, date=date, domain=domain, project=project,
         session_id=session_id, model=model, needs_review=False,
-        transcript_path=str(path), machine=machine,
+        transcript_path=str(path), machine=machine, file_trail=trail,
     )
     violations = lint(page)
     if violations:
@@ -323,7 +324,7 @@ def summarise_one(
         page = render_page(
             fields, date=date, domain=domain, project=project,
             session_id=session_id, model=model, needs_review=True,
-            transcript_path=str(path), machine=machine,
+            transcript_path=str(path), machine=machine, file_trail=trail,
         )
         logger.info("flagged needs-review %s: %s", session_id[:8], ", ".join(violations))
 

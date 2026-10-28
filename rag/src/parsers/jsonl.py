@@ -90,6 +90,80 @@ def _extract_session_metadata(path: Path) -> dict[str, str]:
     return meta
 
 
+# File tools whose input names the path they touch, and the trail bucket each
+# one feeds. Bash is deliberately absent: its paths would need guessing from
+# shell syntax, and its commands can carry secrets that must not reach a page.
+FILE_TOOLS = {
+    "Write": ("written", "file_path"),
+    "Edit": ("edited", "file_path"),
+    "MultiEdit": ("edited", "file_path"),
+    "NotebookEdit": ("edited", "notebook_path"),
+    "Read": ("read", "file_path"),
+}
+TRAIL_BUCKETS = ("written", "edited", "read")
+
+# Claude Code's own bookkeeping (transcripts, persisted tool output) is noise
+# in a trail of the session's work.
+TRAIL_EXCLUDE_RE = re.compile(r"/\.claude/projects/")
+
+
+def extract_file_trail(path: str | Path) -> dict[str, list[str]]:
+    """Collect the files a session wrote, edited and read, from its tool calls.
+
+    The parser strips tool calls before summarising, so without this the
+    summary only knows about a file if the prose happened to name it. A path
+    lands in its strongest bucket only (written, then edited, then read), in
+    order of first appearance.
+    """
+    trail: dict[str, list[str]] = {b: [] for b in TRAIL_BUCKETS}
+    path = Path(path)
+    if not path.exists() or path.suffix != ".jsonl":
+        return trail
+
+    bucket_of: dict[str, str] = {}
+    order: list[str] = []
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                try:
+                    msg = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if not isinstance(msg, dict) or msg.get("type") != "assistant":
+                    continue
+                inner = msg.get("message")
+                content = inner.get("content") if isinstance(inner, dict) else None
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not isinstance(block, dict) or block.get("type") != "tool_use":
+                        continue
+                    spec = FILE_TOOLS.get(block.get("name", ""))
+                    tool_input = block.get("input")
+                    if spec is None or not isinstance(tool_input, dict):
+                        continue
+                    bucket, key = spec
+                    file_path = tool_input.get(key)
+                    if not isinstance(file_path, str) or not file_path.strip():
+                        continue
+                    file_path = file_path.strip()
+                    if TRAIL_EXCLUDE_RE.search(file_path):
+                        continue
+                    current = bucket_of.get(file_path)
+                    if current is None:
+                        order.append(file_path)
+                        bucket_of[file_path] = bucket
+                    elif TRAIL_BUCKETS.index(bucket) < TRAIL_BUCKETS.index(current):
+                        bucket_of[file_path] = bucket
+    except OSError:
+        logger.exception("Failed to read %s", path)
+        return trail
+
+    for file_path in order:
+        trail[bucket_of[file_path]].append(file_path)
+    return trail
+
+
 def parse_conversation(path: str | Path) -> list[dict[str, Any]]:
     """Parse a JSONL conversation file into indexable turn documents.
 

@@ -403,3 +403,32 @@ def test_summarise_one_records_error_on_model_failure(tmp_path: Path, monkeypatc
 
     assert status == "error"
     assert led.get("err12345")["status"] == "error"
+
+
+def test_summarise_one_records_the_file_trail(tmp_path: Path, monkeypatch) -> None:
+    """A file the session wrote reaches both the model and the page."""
+    monkeypatch.setattr(sweep, "WIKI_SESSIONS_ROOT", tmp_path / "wiki")
+    seen = {}
+
+    def _fake(*a, **k):
+        seen["trail"] = k.get("file_trail")
+        return _fake_envelope(_good_fields())
+
+    monkeypatch.setattr(sweep, "run_claude", _fake)
+
+    proj = tmp_path / "projects" / "-Users-w-Developer"
+    proj.mkdir(parents=True)
+    transcript = proj / "abc12345.jsonl"
+    _write_jsonl(transcript, n_turns=6)
+    write_call = {"type": "assistant", "message": {"role": "assistant", "content": [
+        {"type": "tool_use", "id": "t", "name": "Write",
+         "input": {"file_path": "/Users/w/Desktop/plan.md", "content": "x"}}]}}
+    with transcript.open("a", encoding="utf-8") as f:
+        f.write("\n" + json.dumps(write_call))
+
+    led = SummaryLedger(db_path=tmp_path / "l.db")
+    assert sweep.summarise_one(transcript, led, model="haiku", origins={"abc12345": "mbp16"}) == "written"
+
+    assert seen["trail"]["written"] == ["/Users/w/Desktop/plan.md"]
+    page = next((tmp_path / "wiki" / "sessions").rglob("*.md")).read_text()
+    assert "- Written: `/Users/w/Desktop/plan.md`" in page
