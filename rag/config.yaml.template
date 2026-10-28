@@ -7,10 +7,14 @@ watch_paths:
   - ~/Developer
   - ~/.claude/projects
 
-# Embedding model. Set to "auto" to pick based on system RAM:
-#   32GB+: qwen3-embedding:8b
-#   8-31GB: mxbai-embed-large
-# Or set a specific model name to override.
+# Embedding model. Set to "auto" to pick based on the machine:
+#   Apple Silicon with 32GB+: Qwen/Qwen3-Embedding-4B
+#   anything else:            mixedbread-ai/mxbai-embed-large-v1
+# Or set a specific model name to override. A name with "/" runs through
+# sentence-transformers; a bare name (e.g. mxbai-embed-large) runs through Ollama.
+# Each collection is pinned to the model that embedded it
+# (~/.rag/chromadb.embedding-pin.json). Changing the model later makes the
+# store refuse to open until the collection is reindexed with the new model.
 embedding_model: auto
 
 # Model for the session summariser (the resume-loop digests written to the

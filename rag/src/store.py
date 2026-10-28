@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -266,6 +267,30 @@ class OllamaEmbeddingFunction(EmbeddingFunction[Documents]):
         return out
 
 
+class EmbeddingModelMismatch(RuntimeError):
+    """A collection holds vectors from a different model than the one configured.
+
+    Vectors from two models live in different spaces, so querying across them
+    returns plausible but wrong neighbours instead of an error. Refusing to open
+    the store is the only way to make that failure visible.
+    """
+
+
+def _embedder_id(embedding_fn: Any) -> str:
+    """Stable name of the model behind an embedding function."""
+    for attr in ("model_name", "model"):
+        value = getattr(embedding_fn, attr, None)
+        if isinstance(value, str) and value:
+            return value
+    name = getattr(embedding_fn, "name", None)
+    if callable(name):
+        try:
+            return str(name())
+        except Exception:
+            pass
+    return type(embedding_fn).__name__
+
+
 def _doc_id(collection_name: str, identifier: str) -> str:
     """Deterministic document ID from collection name + identifier."""
     raw = f"{collection_name}:{identifier}"
@@ -309,9 +334,60 @@ class Store:
                 metadata={"hnsw:space": "cosine"},
             )
 
+        # Which model embedded each collection. Kept in a sidecar file because
+        # Chroma 0.6 cannot add a metadata key to an existing collection without
+        # dropping its hnsw:space setting.
+        self._model_id = _embedder_id(self._embed_fn)
+        self._pin_path = db_path.parent / f"{db_path.name}.embedding-pin.json"
+        self._check_embedding_pin()
+
         # Keyword mirror lives beside the vector DB. Best-effort: a failure here
         # never blocks a vector upsert, and search falls back to vectors alone.
         self._fts = FtsIndex(db_path.parent / "fts.db")
+
+    def _read_pins(self) -> dict[str, str]:
+        try:
+            data = json.loads(self._pin_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError):
+            logger.warning("Unreadable embedding pin file %s, rebuilding it", self._pin_path)
+            return {}
+        return {k: v for k, v in data.items() if isinstance(v, str)} if isinstance(data, dict) else {}
+
+    def _write_pins(self, pins: dict[str, str]) -> None:
+        tmp = self._pin_path.with_suffix(".tmp")
+        tmp.write_text(json.dumps(pins, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        tmp.replace(self._pin_path)
+
+    def _check_embedding_pin(self) -> None:
+        """Refuse to open a collection embedded with a different model.
+
+        A collection with no pin yet adopts the current model: there is no record
+        to compare against, and its vectors were written by whatever this machine
+        was configured with. An empty collection is simply re-pinned.
+        """
+        pins = self._read_pins()
+        updated = dict(pins)
+        mismatches = []
+        for name in COLLECTIONS:
+            pinned = pins.get(name)
+            if pinned == self._model_id:
+                continue
+            if pinned is None or self._collections[name].count() == 0:
+                updated[name] = self._model_id
+                continue
+            mismatches.append(f"'{name}' was embedded with {pinned}")
+        if mismatches:
+            raise EmbeddingModelMismatch(
+                f"Embedding model is {self._model_id}, but collection "
+                + "; ".join(mismatches)
+                + f". Set embedding_model back in {DEFAULT_CONFIG_PATH}, or reindex "
+                "the collection with the new model (Store.clear_collection, then "
+                f"bulk_index). Pins live in {self._pin_path}."
+            )
+        if updated != pins:
+            self._write_pins(updated)
 
     def _ensure_client(self) -> None:
         """Rebuild the ChromaDB client and collections if they were unloaded."""
@@ -576,6 +652,10 @@ class Store:
         # collection left its FTS rows behind, so search kept returning pages at
         # paths that had moved or been deleted (2,844 such rows had built up).
         removed = self._fts.clear_collection(collection_name)
+        # The collection is empty again, so whatever embeds it next defines it.
+        pins = self._read_pins()
+        pins[collection_name] = self._model_id
+        self._write_pins(pins)
         if removed:
             logger.info("Cleared %d keyword rows for collection %s", removed, collection_name)
 
