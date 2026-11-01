@@ -38,7 +38,8 @@ ASKS_FOR_LENGTH_EN = (
 # "arregla" or "añade" stay out, because the deliverable there is the file.
 ASKS_FOR_LENGTH_ES = (
     r"resum\w*|res\u00fam\w*|explic\w*|expl\u00edc\w*|detall\w*|describ\w*|desglos\w*"
-    r"|redact\w*|escrib\w*|escr\u00edb\w*|document\w*|informes?|an\u00e1lisis|analisis|analiz\w*"
+    r"|redact\w*|escrib\w*|escr\u00edb\w*|document\w*|informes?|informaci\u00f3n|informacion"
+    r"|an\u00e1lisis|analisis|analiz\w*"
     r"|audit\w*|revis\w*|compara\w*|comparaci\w*|listad\w*|lista|listar"
     r"|planific\w*|profundiz\w*|ampl\u00ed\w*|elabor\w*|ense\u00f1\w*|ens\u00e9\u00f1\w*"
     r"|gu\u00eda|art\u00edculo|articulo|ensayo|propuest\w*|cu\u00e9nta\w*|cuenta\w*"
