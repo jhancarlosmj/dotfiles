@@ -61,6 +61,14 @@ def _is_human(rec):
     return bool(t) and not t.startswith("<")
 
 
+def _is_bang_command(rec):
+    """A "! <command>" Warren ran in the prompt. Not a human turn for consent."""
+    if rec.get("type") != "user" or rec.get("isSidechain"):
+        return False
+    t = _text((rec.get("message") or {}).get("content"))
+    return bool(t) and t.lstrip().startswith("<bash-input>")
+
+
 def _queued_human(rec):
     """A message Warren sent mid-turn arrives as a queued_command attachment."""
     if rec.get("type") != "attachment":
@@ -96,7 +104,12 @@ def last_turns(path):
     assistant = []
     for rec in _records(path):
         queued = _queued_human(rec)
-        if queued:
+        if _is_bang_command(rec):
+            # A reply to "! <command>" output is a turn of its own. It keeps
+            # the last human message as its measure, but not the prose of the
+            # turn before it, which had been counted again (2 Nov).
+            assistant = []
+        elif queued:
             human = queued
             assistant = []
         elif _is_human(rec):
