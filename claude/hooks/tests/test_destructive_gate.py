@@ -156,6 +156,55 @@ class SessionCreatedTest(unittest.TestCase):
         self.assertIsNotNone(run_gate("rm a.txt b.txt", history=history))
 
 
+class MergedBranchTest(unittest.TestCase):
+    """`git branch -D` passes only when `git cherry` shows the work is already in a base."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.repo = str(Path(self.tmp.name) / "repo")
+        self.git("init", "-q", "-b", "develop", self.repo, cwd=self.tmp.name)
+        self.commit("base")
+        # A ticket branch rebase-merged into develop: same patches, new hashes.
+        self.git("checkout", "-q", "-b", "ticket/1-merged")
+        self.commit("one")
+        self.git("checkout", "-q", "develop")
+        self.git("cherry-pick", "ticket/1-merged")
+        # A branch with a commit develop does not have.
+        self.git("checkout", "-q", "-b", "ticket/2-open")
+        self.commit("two")
+        self.git("checkout", "-q", "develop")
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def git(self, *args, cwd=None):
+        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
+                       cwd=cwd or self.repo, check=True, capture_output=True)
+
+    def commit(self, name):
+        (Path(self.repo) / name).write_text(name)
+        self.git("add", name)
+        self.git("commit", "-q", "-m", name)
+
+    def test_allows_a_branch_whose_work_is_in_develop(self):
+        self.assertIsNone(run_gate("git branch -D ticket/1-merged", cwd=self.repo))
+        self.assertIsNone(run_gate(f'cd "{self.repo}" && git branch -D ticket/1-merged', cwd="/"))
+        self.assertIsNone(run_gate(f"git -C {self.repo} branch -D ticket/1-merged", cwd="/"))
+
+    def test_blocks_a_branch_with_unmerged_work(self):
+        self.assertIsNotNone(run_gate("git branch -D ticket/2-open", cwd=self.repo))
+        self.assertIsNotNone(run_gate("git branch -D ticket/1-merged ticket/2-open", cwd=self.repo))
+
+    def test_blocks_a_branch_that_is_checked_out_or_missing(self):
+        self.git("checkout", "-q", "ticket/1-merged")
+        self.assertIsNotNone(run_gate("git branch -D ticket/1-merged", cwd=self.repo))
+        self.assertIsNotNone(run_gate("git branch -D ticket/9-none", cwd=self.repo))
+
+    def test_blocks_outside_a_repository_and_over_ssh(self):
+        self.assertIsNotNone(run_gate("git branch -D ticket/1-merged", cwd=self.tmp.name))
+        self.assertIsNotNone(run_gate("ssh host 'git branch -D ticket/1-merged'", cwd=self.repo))
+
+
 class ApprovalTest(unittest.TestCase):
     CMD = "rm -rf ~/Movies/old"
 

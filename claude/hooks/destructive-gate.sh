@@ -10,6 +10,9 @@
 #
 # Session scratch is exempt: rm whose every target sits under a claude-*
 # temporary directory passes, because that space is disposable by design.
+# So is `git branch -D` of a local branch checked out nowhere whose every
+# commit `git cherry` marks `-` against develop, main or master: its work is
+# already there, and a rebase merge leaves -D as the only way to remove it.
 # Anything the gate cannot resolve (a $variable, a ~user path) counts as
 # outside scratch, so the gate errs towards asking.
 #
@@ -146,8 +149,10 @@ def classify(seg, remote, here):
         return f"a disk erase (diskutil {args[0]})"
     if prog == "git":
         # Skip global options such as -C dir to reach the subcommand.
-        i = 0
+        i, repo = 0, here
         while i < len(args) and args[i].startswith("-"):
+            if args[i] == "-C" and i + 1 < len(args):
+                repo = resolve(args[i + 1], here) or "~unknown"
             i += 2 if args[i] in ("-C", "-c", "--git-dir", "--work-tree") else 1
         sub, rest = (args[i], args[i + 1:]) if i < len(args) else ("", [])
         if sub == "reset" and "--hard" in rest:
@@ -164,8 +169,53 @@ def classify(seg, remote, here):
             return f"a git stash {rest[0]}"
         forced = "--force" in rest or "-f" in rest
         if sub == "branch" and ("-D" in rest or ("--delete" in rest and forced) or ("-d" in rest and forced)):
+            if not remote and already_merged(operands(rest), repo):
+                return None
             return "a forced git branch delete"
     return None
+
+
+BASES = ("develop", "main", "master")
+
+
+def git(repo, *args):
+    import subprocess
+    try:
+        proc = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return proc.stdout if proc.returncode == 0 else None
+
+
+def already_merged(branches, repo):
+    """True when every branch is local, checked out nowhere, and its work is in a base.
+
+    A rebase merge rewrites the hashes, so `git branch -d` refuses a branch whose
+    work is already on develop and only -D removes it. `git cherry` compares
+    patches rather than hashes: with no `+` line against develop, main or master
+    (local or origin), deleting the branch loses no commit.
+    """
+    if not branches or not repo or repo.startswith("~") or not os.path.isdir(repo):
+        return False
+    listed = git(repo, "worktree", "list", "--porcelain")
+    if listed is None:
+        return False
+    checked_out = {l.split(" ", 1)[1].strip() for l in listed.splitlines() if l.startswith("branch ")}
+    bases = [r for b in BASES for r in (b, "origin/" + b)
+             if git(repo, "rev-parse", "--verify", "--quiet", r + "^{commit}") is not None]
+    if not bases:
+        return False
+    for name in branches:
+        if "$" in name or "`" in name or name.startswith("-"):
+            return False
+        ref = "refs/heads/" + name
+        if ref in checked_out or git(repo, "rev-parse", "--verify", "--quiet", ref) is None:
+            return False
+        if not any((out := git(repo, "cherry", base, ref)) is not None
+                   and not any(l.startswith("+") for l in out.splitlines())
+                   for base in bases):
+            return False
+    return True
 
 
 ASSIGN = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.S)
