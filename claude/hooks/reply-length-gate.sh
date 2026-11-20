@@ -1,5 +1,5 @@
 #!/bin/bash
-# Stop hook: a short message from Warren gets a short reply.
+# Stop hook: a short message from Jhan Carlos gets a short reply.
 #
 # When his latest message is under 30 words and did not ask for a written
 # artefact (explain, draft, list, report, plan, review...), a reply over 120
@@ -32,7 +32,7 @@ ASKS_FOR_LENGTH_EN = (
     r"|compare|plan|review|document|essay|article|deck|email|walk me|in depth"
     r"|elaborate|everything|all of|why"
 )
-# Warren writes to me in Castilian, so an English-only list let "resume esto"
+# Jhan Carlos writes to me in Castilian, so an English-only list let "resume esto"
 # or "explícame por qué" be penalised for the length they asked for.
 # Verbs only, and only ones that mean "produce something written": "crea",
 # "arregla" or "añade" stay out, because the deliverable there is the file.

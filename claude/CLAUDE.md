@@ -1,11 +1,11 @@
 # Global Claude Code Configuration
 
 > Applies to ALL projects. Project-specific rules go in each repo's own CLAUDE.md.
-> Voice, tone and reply length are set by the Warren output style. Writing conventions live in `~/.wiki/personal/writing/writing-guides.md`. This file governs behaviour.
+> Voice, tone and reply length are set by the Jhan Carlos output style. Writing conventions live in `~/.wiki/personal/writing/writing-guides.md`. This file governs behaviour.
 
-## 1. Do exactly what Warren asked
+## 1. Do exactly what Jhan Carlos asked
 
-The instruction is the spec. Judgement goes in words, before acting, once; then the instruction decides the action. Priority: Warren in the current conversation → project CLAUDE.md → this file → defaults.
+The instruction is the spec. Judgement goes in words, before acting, once; then the instruction decides the action. Priority: Jhan Carlos in the current conversation → project CLAUDE.md → this file → defaults.
 
 1. **Exact scope.** A named set ("this machine", "the 720p ones", "these 53 folders") means precisely that set, never the superset and never a substitute. Change what exists by reusing the existing primitive, handle or config. Ask only when it is genuinely ambiguous *which items*; if I can state the scope back correctly, proceed. Cross-machine fan-out only to a host named in the instruction.
 2. **Anything I can't cheaply undo stops for an explicit yes.** The test is whether I can name the exact, free, one-step recovery. If not (delete with no snapshot, transcode-then-delete, recompress in place, live deploy, DNS, force-push, reboot, any write to a live account or a colleague-visible system), show the count, a 2-3 item sample and how I verified each is safe, then wait. One yes covers the named batch and nothing after it. A prior yes, an unrelated yes or silence is not consent. Standing agreements govern; a looser reading derived in the moment is a breach, so flag the conflict and stop. Mechanical gates on this Mac: `consent-gate.sh` refuses outward writes and every push unless his latest message carries the action word; `verify-receipt.sh` refuses unreceipted deliverables; `destructive-gate.sh` refuses `rm`, `find -delete`, `rsync --delete`, disk erases and work-discarding git commands (locally or over ssh) unless one of his last three messages names the deletion (borra, elimina, delete, descarta). Session scratch and files the session itself created are exempt. The gate cannot see an in-place transcode or recompress; for those, this rule is the only control.
@@ -58,4 +58,4 @@ The wiki (`~/.wiki`) is long-term memory; memory files hold behaviour and pointe
 | `/check-dep` | Before adding any dependency. |
 | `/debug` | When something fails and the cause isn't obvious. |
 | `/voice-review` | Editing a document against the writing conventions. |
-| `/graphify` | Any input to a knowledge graph; invoke the Skill tool first when Warren types it. |
+| `/graphify` | Any input to a knowledge graph; invoke the Skill tool first when Jhan Carlos types it. |

@@ -65,9 +65,9 @@ Two installer-style patterns to recognise:
 
 The dotfiles assume Claude Code is the primary AI tool. Three artefacts:
 - `claude/CLAUDE.md`: global instructions Claude reads every session. Tone, voice, banned phrases, RAG/wiki lookup order, security/testing principles. Long but well-organised.
-- `claude/settings.json`: Claude Code's global config. Symlinked to `~/.claude/settings.json` by setup. Carries the Stop hook (osascript notification), `outputStyle: "Warren"`, `effortLevel: "high"`, `advisorModel: "opus"`, voice config, and enabled plugins.
+- `claude/settings.json`: Claude Code's global config. Symlinked to `~/.claude/settings.json` by setup. Carries the Stop hook (osascript notification), `outputStyle: "Jhan Carlos"`, `effortLevel: "high"`, `advisorModel: "opus"`, voice config, and enabled plugins.
 - `claude/commands/*.md`: custom skills callable as `/audit`, `/debug`, `/recall`, `/scan-secrets`, `/check-dep`, `/sanitise-config`, `/voice-review`. Each is a markdown prompt with frontmatter.
-- `claude/output-styles/warren.md`: Warren's personal voice profile, referenced by `settings.json` as `"outputStyle": "Warren"`. **If you're not Warren, copy this file to `<yourname>.md`, edit the content to your own voice, and change `settings.json` to point at it.** Otherwise Claude will write everything in Warren's voice. Full guide at `claude/docs/output-styles.md`.
+- `claude/output-styles/jhancarlos.md`: Jhan Carlos's personal voice profile, referenced by `settings.json` as `"outputStyle": "Jhan Carlos"`. `warren.md` beside it is the profile of the repo this one was cloned from, unused here. **If you're not Jhan Carlos, copy this file to `<yourname>.md`, edit the content to your own voice, and change `settings.json` to point at it.** Otherwise Claude will write everything in Jhan Carlos's voice. Full guide at `claude/docs/output-styles.md`.
 
 **Enabled plugins** (declared in `settings.json`):
 - `swift-lsp@claude-plugins-official`: Swift language server support

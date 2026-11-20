@@ -55,7 +55,7 @@ class ReplyLengthGate(unittest.TestCase):
         self.assertIsNone(run_gate(" ".join(["palabra"] * 40), LONG_REPLY))
 
     def test_reply_to_a_bang_command_is_measured_alone(self):
-        # Warren ran "! gh api ..." after a long turn answering "push": the
+        # Jhan Carlos ran "! gh api ..." after a long turn answering "push": the
         # 31-word reply to its output was counted with that turn's prose (2 Nov).
         bang = "<bash-input> gh api repos/x/y</bash-input>"
         long_turn = [said_turn("push"), replied_turn(LONG_REPLY)]

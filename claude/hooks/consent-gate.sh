@@ -1,5 +1,5 @@
 #!/bin/bash
-# PreToolUse gate: an outward-facing write needs a fresh, explicit go from Warren.
+# PreToolUse gate: an outward-facing write needs a fresh, explicit go from Jhan Carlos.
 #
 # Covers Bash commands that post, comment, edit, merge or push to a shared or
 # public surface (gh pr/issue writes, gh api mutations, curl mutations to a
@@ -7,7 +7,7 @@
 # delete on a colleague-visible system (email, calendar, Jira, Slack, GitHub,
 # Notion, Composio). Reads and local-only tools pass straight through.
 #
-# The go has to be in Warren's most recent message: post, send, publish, push,
+# The go has to be in Jhan Carlos's most recent message: post, send, publish, push,
 # deploy, go ahead, approved, ship it, submit, merge. A negated form ("don't
 # post") does not count. That makes approval per action and per batch: once he
 # has said anything else, the next outward write is blocked again and the draft
@@ -91,7 +91,7 @@ if is_orca_bot(cwd, transcript):
     print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}))
     sys.exit(0)
 
-# A go stays live until the action is done or Warren redirects. Scanning only
+# A go stays live until the action is done or Jhan Carlos redirects. Scanning only
 # the newest message voided consent whenever he added a follow-up instruction
 # before the authorised command had run (10 Sep, the SCB-5786 force-push), so
 # look back over the last few turns and let a later veto override.
@@ -111,7 +111,7 @@ if go_at is not None and not any(re.search(NEG, t) for t in turns[go_at + 1:]):
     sys.exit(0)
 
 reason = (
-    f"Blocked: this is {label} and Warren's latest message does not authorise it. "
+    f"Blocked: this is {label} and Jhan Carlos's latest message does not authorise it. "
     "Show him the exact draft or command, stop, and ask him to reply with the action word "
     "(post / send / publish / push / deploy / merge). One go covers one named batch, and stays live across follow-up instructions until the action runs or he vetoes it."
 )

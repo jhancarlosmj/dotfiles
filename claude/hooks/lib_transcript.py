@@ -62,7 +62,7 @@ def _is_human(rec):
 
 
 def _is_bang_command(rec):
-    """A "! <command>" Warren ran in the prompt. Not a human turn for consent."""
+    """A "! <command>" Jhan Carlos ran in the prompt. Not a human turn for consent."""
     if rec.get("type") != "user" or rec.get("isSidechain"):
         return False
     t = _text((rec.get("message") or {}).get("content"))
@@ -70,7 +70,7 @@ def _is_bang_command(rec):
 
 
 def _queued_human(rec):
-    """A message Warren sent mid-turn arrives as a queued_command attachment."""
+    """A message Jhan Carlos sent mid-turn arrives as a queued_command attachment."""
     if rec.get("type") != "attachment":
         return None
     a = rec.get("attachment") or {}
