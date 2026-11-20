@@ -26,7 +26,7 @@ HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INPUT="$input" HOOKS_DIR="$HOOKS_DIR" python3 - <<'PY'
 import json, os, re, shlex, sys, unicodedata
 sys.path.insert(0, os.environ["HOOKS_DIR"])
-from lib_transcript import human_turns
+from lib_transcript import human_turns, is_orca_bot
 
 try:
     call = json.loads(os.environ["INPUT"])
@@ -337,6 +337,17 @@ def made_by(cmd, here):
 
 label = check(command)
 if not label:
+    sys.exit(0)
+
+# In an Orca bot run the user turns are Orca's and the waking event's words, so
+# a "delete" there is nobody's go. Scratch and files the run made stay exempt.
+if is_orca_bot(cwd, transcript):
+    reason = (
+        f"Blocked: this is {label}, and this is an Orca bot run, which reads and drafts only. "
+        "Its user turns are written by Orca and by the event that woke it, so no deletion word counts here. "
+        "Leave the exact command in the bot's chat for Jhan Carlos to run."
+    )
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}))
     sys.exit(0)
 
 

@@ -19,7 +19,7 @@ HOOKS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INPUT="$input" HOOKS_DIR="$HOOKS_DIR" python3 - <<'PY'
 import json, os, re, sys
 sys.path.insert(0, os.environ["HOOKS_DIR"])
-from lib_transcript import human_turns
+from lib_transcript import human_turns, is_orca_bot
 
 try:
     call = json.loads(os.environ["INPUT"])
@@ -28,12 +28,18 @@ except Exception:
 tool = call.get("tool_name", "")
 inp = call.get("tool_input", {}) or {}
 transcript = call.get("transcript_path", "")
+cwd = call.get("cwd") or os.getcwd()
 
 BASH_RULES = [
     (r"\bgh\s+(pr|issue)\s+(comment|review|edit|close|merge|create|reopen|lock|ready)\b", "a GitHub PR/issue write"),
     (r"\bgh\s+api\b.*(-X\s*(POST|PATCH|PUT|DELETE)|--method[=\s]*(POST|PATCH|PUT|DELETE)|\s-[fF]\s|--field|--raw-field|--input)", "a GitHub API mutation"),
     (r"\bgh\s+(release|repo)\s+(create|edit|delete|archive|rename)\b", "a GitHub repo/release write"),
     (r"\bgit\s+(-C\s+\S+\s+)?push\b", "a git push"),
+    # Orca's bot commands post as Jhan Carlos. Bots call the binary as
+    # "${ORCA_CLI_COMMAND:-orca}", which the quote stripping below turns to a space.
+    # Only in command position: a commit message naming `orca bot reply` is text.
+    (r"(?m)(^|[;&|(])\s*(orca\s+)?bot\s+reply\b", "a bot reply posted as Jhan Carlos"),
+    (r"(?m)(^|[;&|(])\s*(orca\s+)?slack\s+(post|react)\b", "a Slack post or reaction as Jhan Carlos"),
     (r"\bcurl\b(?![^\n|;&]*(localhost|127\.0\.0\.1|192\.168\.|minipc))[^\n|;&]*(\s-X\s*(POST|PUT|PATCH|DELETE)|\s--request\s*(POST|PUT|PATCH|DELETE)|\s-d\s|\s--data|\s--json\b|\s-F\s|\s--form\b)", "an HTTP mutation to a remote host"),
 ]
 
@@ -72,6 +78,17 @@ def classify():
 
 label = classify()
 if not label:
+    sys.exit(0)
+
+# In an Orca bot run every user turn may be Orca's or a stranger's words, so no
+# go counts: the bot reads and drafts, and Jhan Carlos acts on the draft.
+if is_orca_bot(cwd, transcript):
+    reason = (
+        f"Blocked: this is {label}, and this is an Orca bot run, which reads and drafts only. "
+        "Its user turns are written by Orca and by the event that woke it, so no go word counts here. "
+        "Leave the exact draft in the bot's chat for Jhan Carlos to apply."
+    )
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}))
     sys.exit(0)
 
 # A go stays live until the action is done or Warren redirects. Scanning only

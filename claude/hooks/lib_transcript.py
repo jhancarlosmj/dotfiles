@@ -81,6 +81,19 @@ def _queued_human(rec):
     return None
 
 
+# An Orca bot runs in ~/.orca/bots/<name>, and its transcripts live under a
+# project folder named after it. Orca writes its own instructions, the
+# automation's prompt and the text of the GitHub, Slack or mail event that woke
+# the run as user turns, so a go word there may be someone else's (20 Nov).
+BOT_CWD_RE = re.compile(r"/\.orca/bots/[^/]+(/|$)")
+BOT_TRANSCRIPT_RE = re.compile(r"-orca-bots-[^/]+/")
+
+
+def is_orca_bot(cwd, transcript):
+    """True in an Orca bot run, where no user turn is Jhan Carlos's word."""
+    return bool(BOT_CWD_RE.search(cwd or "") or BOT_TRANSCRIPT_RE.search(transcript or ""))
+
+
 def human_turns(path):
     """Return every human message in order, oldest first."""
     out = []
