@@ -292,10 +292,10 @@ aliases() {
 # ---------------------------------------------------------------------------
 # Telemetry opt-out
 # ---------------------------------------------------------------------------
-export DO_NOT_TRACK=1                              # Claude Code, Bun, Supabase
-export DISABLE_TELEMETRY=1                         # Claude Code (usage metrics)
 export DISABLE_ERROR_REPORTING=1                   # Claude Code (Sentry)
-# CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC turns off artifacts and feature flags; DISABLE_TELEMETRY and DISABLE_ERROR_REPORTING cover the telemetry.
+# DO_NOT_TRACK, DISABLE_TELEMETRY and CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC
+# also stop Claude Code fetching its feature flags, which turns off the
+# artifact database, comments and live updates, so none of them is set.
 
 export WRANGLER_SEND_METRICS=false                 # Cloudflare
 export GH_TELEMETRY=false                          # GitHub CLI
