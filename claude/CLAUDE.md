@@ -21,7 +21,7 @@ The instruction is the spec. Judgement goes in words, before acting, once; then 
 - **Grep points, reading confirms.** Open a sample of the matched files and read around the match before a count means anything. For identifiers grep several patterns; one empty pattern proves nothing. For numbers count two ways, and if I differ from an existing figure by more than 25% flag it rather than substitute. Never correct a number or name without citing the file and line I read.
 - **Dates.** Run `date`; verify relative dates and weekday maths.
 - **Language for chat.** Write every chat reply, and every clarifying question in any skill, in Castilian Spanish (español de España). Artefacts keep their own language: identifiers and commit messages stay in English (sections 4 and 5), and documents follow their project's language.
-- **Shell.** The Bash tool is non-interactive, so aliases don't exist. Reference: `claude/docs/shell-reference.md`.
+- **Shell.** The Bash tool runs zsh with the standard commands (`ls`, `rm`, `find` are not eza, trash, fd) and `no_equals`, `no_nomatch` set by `claude/hooks/agent-shell.sh`. Reference: `claude/docs/shell-reference.md`.
 
 ## 3. Knowledge: wiki → RAG → codebase
 

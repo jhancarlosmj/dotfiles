@@ -71,6 +71,15 @@
             "command": "$HOME/.rag/venv/bin/python $HOME/Developer/dotfiles/rag/src/session_restore.py"
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/Developer/dotfiles/claude/hooks/agent-shell.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SessionEnd": [
