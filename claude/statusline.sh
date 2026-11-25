@@ -237,6 +237,52 @@ __rel_time() {
   h=$((diff/3600)); rem=$(((diff%3600)/60))
   printf 'T-%dh%02dm' "$h" "$rem"
 }
+# Month-to-date Claude Code cost, estimated by ccusage at API prices. The line
+# reads a cache that a background run refreshes every 5 minutes, so it never
+# waits on ccusage. Cache line: "<YYYY-MM> <epoch written> <cost in USD>".
+MONTH_COST_CACHE="${MONTH_COST_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline/month-cost}"
+MONTH_COST_TTL="${MONTH_COST_TTL:-300}"
+__refresh_month_cost() {
+  local month="$1" now="$2" dir lock tmp cost
+  dir="${MONTH_COST_CACHE%/*}"
+  lock="$dir/refresh.lock"
+  mkdir -p "$dir" 2>/dev/null || return 0
+  # A refresh killed mid-run leaves its lock behind; drop it after a minute
+  if [ -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then rmdir "$lock" 2>/dev/null; fi
+  mkdir "$lock" 2>/dev/null || return 0
+  cost="$(ccusage claude monthly --json --offline --since "${month//-/}01" 2>/dev/null \
+    | jq -r --arg m "$month" '[.monthly[] | select(.month == $m) | .totalCost] | add // 0' 2>/dev/null)"
+  if [ -n "$cost" ]; then
+    tmp="$MONTH_COST_CACHE.$$"
+    printf '%s %s %s\n' "$month" "$now" "$cost" > "$tmp" && mv "$tmp" "$MONTH_COST_CACHE"
+  fi
+  rmdir "$lock" 2>/dev/null
+}
+# Round "2521.93" to whole dollars with integer maths. printf would read the
+# decimal point from the locale and reject it under es_ES.
+__round_usd() {
+  local whole frac
+  whole="$(__norm_int "${1%%.*}")"
+  frac="${1#"${1%%.*}"}"
+  frac="${frac#.}"
+  case "${frac:0:1}" in [5-9]) whole=$((whole + 1)) ;; esac
+  printf '%d' "$whole"
+}
+__month_cost() {
+  command -v ccusage >/dev/null 2>&1 && command -v jq >/dev/null 2>&1 || return 0
+  local month now c_month="" c_at="" c_cost=""
+  month="$(date +%Y-%m)"
+  now="$(date +%s)"
+  if [ -r "$MONTH_COST_CACHE" ]; then
+    read -r c_month c_at c_cost < "$MONTH_COST_CACHE" || :
+  fi
+  c_at="$(__norm_int "$c_at")"
+  if [ "$c_month" != "$month" ] || [ $((now - c_at)) -ge "$MONTH_COST_TTL" ]; then
+    __refresh_month_cost "$month" "$now" >/dev/null 2>&1 &
+  fi
+  # Last month's figure is never shown as this month's
+  if [ "$c_month" = "$month" ] && [ -n "$c_cost" ]; then printf '%s' "$c_cost"; fi
+}
 __v="$(__field 'model.display_name')"
 __emit '38;5;198' "$__v"
 __emit '38;5;198' ' '
@@ -279,6 +325,11 @@ __emit '38;2;100;171;255' ' '
 __out="$(__git_branch)"
 __emit '3;38;2;113;224;255' "$__out"
 __emit '3;38;2;113;224;255' ' '
+__out="$(__month_cost)"
+if [ -n "$__out" ]; then
+  __emit '' '| '
+  __emit '38;5;150' "~\$$(__round_usd "$__out")/mes"
+fi
 
 exit 0
 

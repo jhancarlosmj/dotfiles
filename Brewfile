@@ -39,6 +39,7 @@ brew "qrencode"                  # Generate QR codes from the CLI
 brew "ffmpeg"                    # Audio/video codec swiss army knife
 brew "poppler"                   # PDF utilities (pdftotext, pdfimages)
 brew "zbar"                      # Barcode/QR decoder
+brew "ccusage"                   # Claude Code cost estimates (status line month total)
 
 # ============================================================================
 # Languages & Runtimes (always installed)
