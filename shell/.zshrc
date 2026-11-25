@@ -290,6 +290,21 @@ aliases() {
 }
 
 # ---------------------------------------------------------------------------
+# Telemetry opt-out
+# ---------------------------------------------------------------------------
+export DO_NOT_TRACK=1                              # Claude Code, Bun, Supabase
+export DISABLE_TELEMETRY=1                         # Claude Code (usage metrics)
+export DISABLE_ERROR_REPORTING=1                   # Claude Code (Sentry)
+export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1  # Claude Code (all non-essential traffic)
+
+export WRANGLER_SEND_METRICS=false                 # Cloudflare
+export GH_TELEMETRY=false                          # GitHub CLI
+
+export NEXT_TELEMETRY_DISABLED=1
+export ASTRO_TELEMETRY_DISABLED=1
+export VERCEL_TELEMETRY_DISABLED=1
+
+# ---------------------------------------------------------------------------
 # Secrets (API keys, tokens — NOT committed to git)
 # ---------------------------------------------------------------------------
 [[ -f ~/.secrets.env ]] && source ~/.secrets.env
