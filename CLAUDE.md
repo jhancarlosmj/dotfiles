@@ -33,6 +33,7 @@ dotfiles/
 │   ├── CLAUDE.md        Global instructions Claude reads at every session start
 │   ├── commands/        Custom skills (audit, debug, recall, voice-review, ...)
 │   ├── output-styles/   Output presets (warren.md)
+│   ├── statusline*.sh   Status line script + the wrapper that also feeds Orca
 │   └── docs/            Shell reference + RAG/wiki explainer
 │
 ├── rag/                 Local semantic-search system for Claude Code
@@ -67,6 +68,7 @@ The dotfiles assume Claude Code is the primary AI tool. Three artefacts:
 - `claude/CLAUDE.md`: global instructions Claude reads every session. Tone, voice, banned phrases, RAG/wiki lookup order, security/testing principles. Long but well-organised.
 - `claude/settings.json`: Claude Code's global config. Symlinked to `~/.claude/settings.json` by setup. Carries the Stop hook (osascript notification), `outputStyle: "Jhan Carlos"`, `effortLevel: "high"`, `advisorModel: "opus"`, voice config, and enabled plugins.
 - `claude/commands/*.md`: custom skills callable as `/audit`, `/debug`, `/recall`, `/scan-secrets`, `/check-dep`, `/sanitise-config`, `/voice-review`. Each is a markdown prompt with frontmatter.
+- `claude/statusline.sh` and `claude/statusline-wrapper.sh`: the status line. Point `statusLine.command` at `bash ~/.claude/statusline-wrapper.sh`; the wrapper renders `statusline.sh` and, inside an Orca pane, pipes the same JSON to Orca's usage-limit hook. Never put `agent-hooks/claude-statusline` in the command, or Orca takes it over as its own.
 - `claude/output-styles/jhancarlos.md`: Jhan Carlos's personal voice profile, referenced by `settings.json` as `"outputStyle": "Jhan Carlos"`. `warren.md` beside it is the profile of the repo this one was cloned from, unused here. **If you're not Jhan Carlos, copy this file to `<yourname>.md`, edit the content to your own voice, and change `settings.json` to point at it.** Otherwise Claude will write everything in Jhan Carlos's voice. Full guide at `claude/docs/output-styles.md`.
 
 **Enabled plugins** (declared in `settings.json`):

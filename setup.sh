@@ -951,6 +951,9 @@ if command -v claude &>/dev/null || [[ "${CLAUDE_CODE_INSTALLED:-}" == "true" ]]
   fi
   symlink "${DOTFILES_DIR}/claude/settings.json" "$CLAUDE_SETTINGS"
   symlink "${DOTFILES_DIR}/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+  # Status line: the wrapper renders statusline.sh and feeds Orca's hook
+  symlink "${DOTFILES_DIR}/claude/statusline.sh" "$HOME/.claude/statusline.sh"
+  symlink "${DOTFILES_DIR}/claude/statusline-wrapper.sh" "$HOME/.claude/statusline-wrapper.sh"
   # Symlink global skills (commands)
   if [[ -d "${DOTFILES_DIR}/claude/commands" ]]; then
     mkdir -p "$HOME/.claude/commands"
