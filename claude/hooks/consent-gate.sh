@@ -110,10 +110,21 @@ for i, t in enumerate(turns):
 if go_at is not None and not any(re.search(NEG, t) for t in turns[go_at + 1:]):
     sys.exit(0)
 
+# A repository may approve some commands itself, by rules it has merged on its
+# remote (auto_consent.py). Bots never reach this point.
+auto_why = None
+if tool == "Bash":
+    from auto_consent import decide
+    allowed, auto_why = decide(inp.get("command", "") or "", cwd, transcript)
+    if allowed:
+        sys.exit(0)
+
 reason = (
     f"Blocked: this is {label} and Jhan Carlos's latest message does not authorise it. "
     "Show him the exact draft or command, stop, and ask him to reply with the action word "
     "(post / send / publish / push / deploy / merge). One go covers one named batch, and stays live across follow-up instructions until the action runs or he vetoes it."
 )
+if auto_why:
+    reason += f" The repository's auto-consent rules did not approve it either: {auto_why}"
 print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": reason}}))
 PY
