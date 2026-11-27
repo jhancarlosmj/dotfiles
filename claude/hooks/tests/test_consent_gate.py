@@ -101,10 +101,19 @@ print(json.dumps({"allow": ok, "reason": "ok-branch is pushable" if ok else "onl
 """
 
 
+ALLOW_ALL = 'import json; print(json.dumps({"allow": True, "reason": "all"}))\n'
+
+
 def make_repo(tmp, rules=None, ref="refs/remotes/origin/develop", worktree_rules=None):
-    """A repository whose remote-tracking branch carries `rules` as its auto-consent script."""
+    """A repository whose remote-tracking branch carries `rules` as its auto-consent script.
+
+    origin is a bare repository beside it, whose branch of the same name is at
+    the same commit, as after a fetch.
+    """
     repo = Path(tmp) / "repo"
     repo.mkdir()
+    origin = Path(tmp) / "origin.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(origin)], check=True, capture_output=True)
     git = lambda *a: subprocess.run(["git", "-C", str(repo), *a], check=True, capture_output=True)
     git("init", "-q", "-b", "work")
     git("config", "user.email", "t@example.com")
@@ -116,7 +125,9 @@ def make_repo(tmp, rules=None, ref="refs/remotes/origin/develop", worktree_rules
     git("add", "-A")
     git("commit", "-q", "-m", "init")
     git("update-ref", ref, "HEAD")
-    git("remote", "add", "origin", f"git@example.com:{repo.parent.name}/repo.git")
+    git("remote", "add", "origin", str(origin))
+    if ref.startswith("refs/remotes/origin/"):
+        git("push", "-q", "origin", f"HEAD:refs/heads/{ref.rsplit('/', 1)[1]}")
     if worktree_rules is not None:
         (repo / ".claude" / "auto-consent.py").write_text(worktree_rules, encoding="utf-8")
     return str(repo)
@@ -166,9 +177,53 @@ class AutoConsentTest(unittest.TestCase):
         self.assertIsNone(run_gate("git push origin ok-branch", said=["sí"], cwd=repo))
 
     def test_ignores_rules_only_in_the_working_tree(self):
-        allow_all = 'import json; print(json.dumps({"allow": True, "reason": "all"}))\n'
-        repo = self.trust(make_repo(self.tmp.name, ALLOW_OK_BRANCH, worktree_rules=allow_all))
+        repo = self.trust(make_repo(self.tmp.name, ALLOW_OK_BRANCH, worktree_rules=ALLOW_ALL))
         self.assertIsNotNone(run_gate("git push origin other", said=["sí"], cwd=repo))
+
+    def commit_rules(self, repo, rules):
+        """A commit on top of HEAD whose rules are `rules`, reachable from no remote branch."""
+        git = lambda *a: subprocess.run(["git", "-C", repo, *a], check=True, capture_output=True, text=True).stdout.strip()
+        blob = subprocess.run(["git", "-C", repo, "hash-object", "-w", "--stdin"], input=rules,
+                              check=True, capture_output=True, text=True).stdout.strip()
+        git("update-index", "--add", "--cacheinfo", f"100644,{blob},.claude/auto-consent.py")
+        tree = git("write-tree")
+        git("reset", "-q")
+        return git("commit-tree", tree, "-p", "HEAD", "-m", "other rules")
+
+    def test_ignores_a_remote_tracking_branch_moved_by_hand(self):
+        repo = self.trust(make_repo(self.tmp.name, ALLOW_OK_BRANCH))
+        moved = self.commit_rules(repo, ALLOW_ALL)
+        subprocess.run(["git", "-C", repo, "update-ref", "refs/remotes/origin/develop", moved], check=True)
+        reason = run_gate("git push origin other", said=["sí"], cwd=repo)
+        self.assertIn("git fetch origin", reason)
+        self.assertFalse(self.log.exists())
+
+    def test_ignores_a_replace_ref_over_the_merged_commit(self):
+        repo = self.trust(make_repo(self.tmp.name, ALLOW_OK_BRANCH))
+        other = self.commit_rules(repo, ALLOW_ALL)
+        subprocess.run(["git", "-C", repo, "replace", "refs/remotes/origin/develop", other], check=True)
+        reason = run_gate("git push origin other", said=["sí"], cwd=repo)
+        self.assertIn("only ok-branch is", reason)
+        self.assertFalse(self.log.exists())
+
+    def test_refuses_when_origin_cannot_be_read(self):
+        repo = self.trust(make_repo(self.tmp.name, ALLOW_OK_BRANCH))
+        subprocess.run(["rm", "-rf", str(Path(self.tmp.name) / "origin.git")], check=True)
+        reason = run_gate("git push origin ok-branch", said=["sí"], cwd=repo)
+        self.assertIn("could not read origin", reason)
+        self.assertFalse(self.log.exists())
+
+    def test_ignores_a_url_rewrite_in_the_repositorys_config(self):
+        repo = self.trust(make_repo(self.tmp.name, ALLOW_OK_BRANCH))
+        moved = self.commit_rules(repo, ALLOW_ALL)
+        fake = Path(self.tmp.name) / "fake.git"
+        subprocess.run(["git", "init", "-q", "--bare", str(fake)], check=True, capture_output=True)
+        subprocess.run(["git", "-C", repo, "push", "-q", str(fake), f"{moved}:refs/heads/develop"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", repo, "update-ref", "refs/remotes/origin/develop", moved], check=True)
+        origin = str(Path(self.tmp.name) / "origin.git")
+        subprocess.run(["git", "-C", repo, "config", f"url.{fake}.insteadOf", origin], check=True)
+        self.assertIsNotNone(run_gate("git push origin other", said=["sí"], cwd=repo))
+        self.assertFalse(self.log.exists())
 
     def test_ignores_rules_on_a_local_branch_only(self):
         repo = self.trust(make_repo(self.tmp.name, ALLOW_OK_BRANCH, ref="refs/heads/develop"))
