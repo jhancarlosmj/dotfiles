@@ -4,6 +4,10 @@ Source: `~/Developer/dotfiles/shell/.zshrc` (symlinked to `~/.zshrc`)
 
 Claude Code's Bash tool loads a snapshot of this shell, aliases included. The SessionStart hook `claude/hooks/agent-shell.sh` undoes the aliases that stand in for a standard command (`ls`, `ll`, `lt`, `cat`, `find`, `rm`, `top`, `man`, `diff`, `du`) and sets `no_equals` and `no_nomatch`, for the agent only. So in the Bash tool `ls`, `rm` and `find` are the system commands, `echo =====` prints, and an unmatched glob such as `--include=*.ts` reaches the command as written. The other aliases below are there too; the terminal keeps all of them.
 
+## Exit status
+
+A command's exit status is read right after it runs, before any pipe or substitution: `cmd >"$out" 2>&1; rc=$?`, then read `$out`. `cmd | tail` reports `tail`'s status, and `$?` read after a `$(…)` reports the substitution's. With a pipe, zsh keeps each status in `$pipestatus[1]`…, bash in `${PIPESTATUS[0]}`….
+
 ## Aliases
 
 ### CLI Replacements
